@@ -3,45 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tasa BCV - justcarlux</title>
+  <title>Tasa BCV</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      max-width: 440px; margin: 40px auto; padding: 20px;
-      background: #f0f2f5;
-    }
+    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+           max-width: 440px; margin: 40px auto; padding: 20px; background: #f0f2f5; }
     .card { background: white; padding: 24px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.08); }
     h2 { margin: 0 0 16px; color: #111; }
-    .tasa-box {
-      background: linear-gradient(135deg, #0066cc, #0099ff);
-      color: white; padding: 18px; border-radius: 10px;
-      text-align: center; margin-bottom: 16px;
-    }
+    .tasa-box { background: linear-gradient(135deg, #0066cc, #0099ff);
+                color: white; padding: 18px; border-radius: 10px;
+                text-align: center; margin-bottom: 16px; }
     .tasa-box .label { font-size: .8em; opacity: .9; }
     .tasa-box .valor { font-size: 1.9em; font-weight: bold; margin: 4px 0; }
     .tasa-box .fecha { font-size: .78em; opacity: .85; }
-    input, select, button {
-      width: 100%; padding: 12px; margin: 6px 0;
-      border: 1px solid #ddd; border-radius: 8px; font-size: 1em;
-    }
+    input, select, button { width: 100%; padding: 12px; margin: 6px 0;
+                            border: 1px solid #ddd; border-radius: 8px; font-size: 1em; }
     button { background: #0066cc; color: white; border: none; font-weight: bold; cursor: pointer; }
-    button:hover { background: #0052a3; }
     button:disabled { background: #ccc; cursor: not-allowed; }
-    .resultado {
-      background: #e8f4ff; padding: 16px; border-radius: 10px;
-      margin-top: 12px; text-align: center; font-size: 1.3em;
-      font-weight: bold; color: #0066cc; min-height: 24px;
-    }
+    .resultado { background: #e8f4ff; padding: 16px; border-radius: 10px;
+                 margin-top: 12px; text-align: center; font-size: 1.3em;
+                 font-weight: bold; color: #0066cc; min-height: 24px; }
     .status { font-size: .8em; text-align: center; margin-top: 8px; color: #666; }
     .status.ok { color: #0a8f3c; }
     .status.err { color: #d32f2f; }
-    .debug {
-      background: #111; color: #0f0; font-family: monospace;
-      font-size: 11px; padding: 10px; border-radius: 6px;
-      margin-top: 10px; max-height: 180px; overflow: auto;
-      white-space: pre-wrap;
-    }
+    .debug { background: #111; color: #0f0; font-family: monospace;
+             font-size: 11px; padding: 10px; border-radius: 6px;
+             margin-top: 10px; max-height: 180px; overflow: auto; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -49,7 +36,7 @@
     <h2>💵 Tasa BCV</h2>
 
     <div class="tasa-box">
-      <div class="label">Dólar (USD) · justcarlux.dev</div>
+      <div class="label">Dólar (USD)</div>
       <div class="valor" id="tasaValor">Cargando…</div>
       <div class="fecha" id="tasaFecha"></div>
     </div>
@@ -67,16 +54,40 @@
   </div>
 
   <script>
-    const API = 'https://bcv.justcarlux.dev/api/v1/rates';
-
-    // Proxies CORS (se prueban en orden hasta que uno funcione)
-    const PROXIES = [
-      { n: 'allorigins-raw',  u: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
-      { n: 'allorigins-get',  u: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u) },
-      { n: 'corsproxy.io',    u: u => 'https://corsproxy.io/?' + encodeURIComponent(u) },
-      { n: 'codetabs',        u: u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u) },
-      { n: 'thingproxy',      u: u => 'https://thingproxy.freeboard.io/fetch/' + u },
-      { n: 'directo',         u: u => u }
+    // Fuentes ordenadas de mejor a peor
+    const FUENTES = [
+      {
+        nombre: 'DolarAPI VE',
+        url: 'https://ve.dolarapi.com/v1/dolares/oficial',
+        parse: d => ({
+          valor: parseFloat(d.promedio),
+          fecha: new Date(d.fechaActualizacion).getTime()
+        })
+      },
+      {
+        nombre: 'DolarAPI Paralelo',
+        url: 'https://ve.dolarapi.com/v1/dolares/paralelo',
+        parse: d => ({
+          valor: parseFloat(d.promedio),
+          fecha: new Date(d.fechaActualizacion).getTime()
+        })
+      },
+      {
+        nombre: 'justcarlux (allorigins)',
+        url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://bcv.justcarlux.dev/api/v1/rates'),
+        parse: d => ({
+          valor: parseFloat(d.rates.usd),
+          fecha: d.updatedAt
+        })
+      },
+      {
+        nombre: 'justcarlux (codetabs)',
+        url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent('https://bcv.justcarlux.dev/api/v1/rates'),
+        parse: d => ({
+          valor: parseFloat(d.rates.usd),
+          fecha: d.updatedAt
+        })
+      }
     ];
 
     let tasa = 0;
@@ -95,64 +106,60 @@
       convertir();
     }
 
-    // Parsea el JSON sin importar el proxy (algunos envuelven en {contents: "..."})
-    function extraerJSON(data) {
-      if (typeof data === 'string') return JSON.parse(data);
-      if (data && typeof data.contents === 'string') return JSON.parse(data.contents);
-      if (data && data.rates) return data;
-      return null;
-    }
-
     async function cargarTasa() {
       $('debug').textContent = '';
       log('Protocolo: ' + location.protocol);
-      log('API objetivo: ' + API);
       log('---');
 
       // Caché primero
-      const ts = parseInt(localStorage.getItem('jc_ts') || '0');
+      const ts = parseInt(localStorage.getItem('tasa_ts') || '0');
       if (Date.now() - ts < 3600000) {
-        const v = parseFloat(localStorage.getItem('jc_usd'));
+        const v = parseFloat(localStorage.getItem('tasa_valor'));
         if (v) pintarTasa(v, ts, 'caché');
       }
 
-      for (const p of PROXIES) {
+      // Probar cada fuente
+      for (const f of FUENTES) {
         try {
-          log(`→ ${p.n}…`);
+          log(`→ ${f.nombre}…`);
           const ctrl = new AbortController();
           const timer = setTimeout(() => ctrl.abort(), 8000);
 
-          const res = await fetch(p.u(API), { cache: 'no-store', signal: ctrl.signal });
+          const res = await fetch(f.url, { cache: 'no-store', signal: ctrl.signal });
           clearTimeout(timer);
 
           if (!res.ok) throw new Error('HTTP ' + res.status);
 
           const raw = await res.json();
-          const data = extraerJSON(raw);
-          if (!data || !data.rates || !data.rates.usd) throw new Error('Sin rates.usd');
+          // Algunos proxies devuelven string o {contents:"..."}
+          let data = raw;
+          if (typeof raw === 'string') data = JSON.parse(raw);
+          if (raw?.contents) data = JSON.parse(raw.contents);
 
-          const valor = parseFloat(data.rates.usd);
-          const fecha = data.updatedAt;
+          const { valor, fecha } = f.parse(data);
+          if (!valor || isNaN(valor)) throw new Error('Valor inválido');
 
-          localStorage.setItem('jc_usd', valor);
-          localStorage.setItem('jc_ts', fecha);
+          localStorage.setItem('tasa_valor', valor);
+          localStorage.setItem('tasa_ts', fecha);
 
-          pintarTasa(valor, fecha, p.n + ' → justcarlux');
-          log(`✅ ${p.n}: ${valor} Bs`);
+          pintarTasa(valor, fecha, f.nombre);
+          log(`✅ ${f.nombre}: ${valor} Bs`);
           return;
 
         } catch (e) {
-          log(`❌ ${p.n}: ${e.message}`);
+          log(`❌ ${f.nombre}: ${e.message}`);
         }
       }
 
-      // Fallback final
-      const v = localStorage.getItem('jc_usd');
+      // Fallback final: caché
+      const v = localStorage.getItem('tasa_valor');
       if (v) {
         pintarTasa(parseFloat(v), ts, 'caché (offline)');
+        log('⚠️ Usando caché');
       } else {
-        $('status').textContent = '❌ Ningún proxy funcionó. Abre con Live Server.';
+        $('status').textContent = '❌ Todas las fuentes fallaron';
         $('status').className = 'status err';
+        log('❌ Ninguna fuente respondió');
       }
     }
 
@@ -169,6 +176,7 @@
     $('tipo').addEventListener('change', convertir);
 
     cargarTasa();
+    setInterval(cargarTasa, 1800000);
   </script>
 </body>
 </html>
